@@ -92,3 +92,16 @@ class Trainer:
         metrics.update_state(loss, mean_mae, mae, nsamples)
 
         return preds
+
+    @tf.function
+    def extract_on_batch(self, dataset_iter, metrics):
+        inputs, targets = next(dataset_iter)
+        preds, P, features, sum_features = self.model(inputs, extract_flag=True, training=False)
+
+        mae = tf.reduce_mean(tf.abs(targets - preds), axis=0)
+        mean_mae = tf.reduce_mean(mae)
+        loss = mean_mae
+        nsamples = tf.shape(preds)[0]
+        metrics.update_state(loss, mean_mae, mae, nsamples)
+
+        return preds, inputs, targets, P, features, sum_features

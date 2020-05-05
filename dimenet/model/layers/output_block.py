@@ -20,7 +20,7 @@ class OutputBlock(layers.Layer):
         self.dense_final = layers.Dense(num_targets, use_bias=False,
                                         kernel_initializer='zeros')
 
-    def call(self, inputs):
+    def call(self, inputs, extract_flag=False):
         x, rbf, idnb_i, n_atoms = inputs
 
         g = self.dense_rbf(rbf)
@@ -29,5 +29,8 @@ class OutputBlock(layers.Layer):
 
         for layer in self.dense_layers:
             x = layer(x)
-        x = self.dense_final(x)
-        return x
+        out = self.dense_final(x)
+        if not extract_flag:
+            return out
+        else:
+            return out, x

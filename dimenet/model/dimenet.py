@@ -91,7 +91,7 @@ class DimeNet(tf.keras.Model):
         angle = tf.math.atan2(y, x)
         return angle
 
-    def call(self, inputs):
+    def call(self, inputs, extract_flag=False):
         Z, R                         = inputs['Z'], inputs['R']
         batch_seg                    = inputs['batch_seg']
         idnb_i, idnb_j               = inputs['idnb_i'], inputs['idnb_j']
@@ -110,12 +110,25 @@ class DimeNet(tf.keras.Model):
 
         # Embedding block
         x = self.emb_block([Z, rbf, idnb_i, idnb_j])
-        P = self.output_blocks[0]([x, rbf, idnb_i, n_atoms])
+        sum_feature = self.output_blocks[0]([x, rbf, idnb_i, n_atoms], extract_flag=extract_flag)
+        if extract_flag:
+            sum_feature, feature = sum_feature
+            feature_list = [feature,]
+            sum_feature_list = [sum_feature,]
+        P = sum_feature
 
         # Interaction blocks
         for i in range(self.num_blocks):
             x = self.int_blocks[i]([x, rbf, sbf, id_expand_kj, id_reduce_ji])
-            P += self.output_blocks[i+1]([x, rbf, idnb_i, n_atoms])
+            sum_feature = self.output_blocks[i+1]([x, rbf, idnb_i, n_atoms], extract_flag=extract_flag)
+            if extract_flag:
+                sum_feature, feature = sum_feature
+                feature_list.append(feature)
+                sum_feature_list.append(sum_feature)
+            P += sum_feature
 
-        P = tf.math.segment_sum(P, batch_seg)
-        return P
+        preds = tf.math.segment_sum(P, batch_seg)
+        if not extract_flag:
+            return preds
+        else:
+            return preds, P, tf.stack(feature_list, axis=1), tf.stack(sum_feature_list, axis=1)
